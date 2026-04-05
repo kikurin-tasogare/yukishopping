@@ -24,11 +24,15 @@
       box-sizing: border-box;
     }
 
+    html {
+      min-height: 100%;
+      background: var(--bg);
+    }
+
     html, body {
       margin: 0;
       min-height: 100%;
       font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
-      background: var(--bg);
       color: var(--text);
       -webkit-tap-highlight-color: transparent;
     }
@@ -62,7 +66,25 @@
       flex-direction: column;
       align-items: center;
       gap: 12px;
-      margin-bottom: 24px;
+      margin-bottom: 0;
+    }
+
+    .logo-bridge {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 22px 0 24px;
+      padding: 12px 16px;
+      flex-shrink: 0;
+    }
+
+    .logo-bridge img {
+      width: min(168px, 46vw);
+      max-width: 100%;
+      height: auto;
+      display: block;
+      pointer-events: none;
+      user-select: none;
     }
 
     .voice-btn {
@@ -242,6 +264,7 @@
     }
 
     .manual-wrap {
+      margin-top: 0;
       margin-bottom: 24px;
     }
 
@@ -293,15 +316,63 @@
     .manual-btn:active {
       transform: scale(0.98);
     }
+
+    .place-wrap {
+      margin-bottom: 20px;
+    }
+
+    .place-input {
+      width: 100%;
+      min-height: var(--tap);
+      padding: 12px 14px;
+      font-size: 16px;
+      border: 1px solid #c8d4cc;
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .place-input:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .place-section {
+      margin-bottom: 22px;
+    }
+
+    .place-section:last-of-type {
+      margin-bottom: 8px;
+    }
+
+    .place-heading {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin: 0 0 10px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid #d0e5db;
+      color: var(--accent);
+      letter-spacing: -0.02em;
+      word-break: break-word;
+    }
+
+    .place-section ul {
+      margin: 0;
+    }
   </style>
 </head>
 <body>
   <header>
     <h1>買い物リスト</h1>
-    <p class="sub">マイクで話すか、下の欄に文字で入力</p>
+    <p class="sub">追加する場所を入力してから、マイクまたは文字で追加</p>
   </header>
 
   <div id="unsupported" class="unsupported" hidden></div>
+
+  <div class="place-wrap">
+    <label class="manual-label" for="placeInput">追加する場所</label>
+    <input type="text" id="placeInput" class="place-input" placeholder="例：スーパー、100円均一、ドラッグストア" autocomplete="on" enterkeyhint="next" inputmode="text" />
+  </div>
 
   <div class="voice-wrap">
     <button type="button" id="voiceBtn" class="voice-btn" aria-pressed="false">
@@ -316,6 +387,10 @@
     <p id="status" class="status" role="status"></p>
   </div>
 
+  <div class="logo-bridge" aria-hidden="true">
+    <img src="logo-mizuiro.png" alt="" width="168" height="170" decoding="async" />
+  </div>
+
   <div class="manual-wrap">
     <label class="manual-label" for="manualInput">文字で追加</label>
     <div class="manual-row">
@@ -328,41 +403,91 @@
     <h2>リスト</h2>
     <button type="button" id="clearDone" class="clear-done" hidden>完了を削除</button>
   </div>
-  <ul id="list" aria-label="買い物リスト"></ul>
-  <p id="empty" class="empty">まだありません。<br />音声ボタンまたは「文字で追加」から入れてください。</p>
+  <div id="listRoot" aria-label="買い物リスト（場所別）"></div>
+  <p id="empty" class="empty">まだありません。<br />上で「追加する場所」を入れてから、音声または「文字で追加」で品目を入れてください。</p>
 
   <script>
     (function () {
       var STORAGE_KEY = "voice-shopping-list-v1";
+      var ACTIVE_PLACE_KEY = "voice-shopping-list-active-place";
+      var LEGACY_CAT_KEY = "voice-shopping-list-active-cat";
 
       var voiceBtn = document.getElementById("voiceBtn");
       var voiceLabel = document.getElementById("voiceLabel");
       var statusEl = document.getElementById("status");
-      var listEl = document.getElementById("list");
+      var listRoot = document.getElementById("listRoot");
       var emptyEl = document.getElementById("empty");
       var clearDoneBtn = document.getElementById("clearDone");
       var unsupportedEl = document.getElementById("unsupported");
       var manualInput = document.getElementById("manualInput");
       var manualAdd = document.getElementById("manualAdd");
+      var placeInput = document.getElementById("placeInput");
 
       var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       var recognition = null;
       var items = [];
 
+      function placeFromItem(i) {
+        if (i.place && String(i.place).trim()) return String(i.place).trim();
+        if (i.cat === "hyakuen") return "100円均一";
+        if (i.cat === "drugstore") return "ドラッグストア";
+        return "スーパー";
+      }
+
       function load() {
         try {
           var raw = localStorage.getItem(STORAGE_KEY);
-          if (raw) items = JSON.parse(raw);
-          if (!Array.isArray(items)) items = [];
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+              items = parsed.map(function (i) {
+                return {
+                  id: i.id,
+                  text: i.text,
+                  done: !!i.done,
+                  place: placeFromItem(i)
+                };
+              });
+            } else items = [];
+          } else items = [];
         } catch (e) {
           items = [];
         }
+        try {
+          var sp = localStorage.getItem(ACTIVE_PLACE_KEY);
+          if (sp !== null) {
+            placeInput.value = sp;
+          } else {
+            var leg = localStorage.getItem(LEGACY_CAT_KEY);
+            if (leg === "hyakuen") placeInput.value = "100円均一";
+            else if (leg === "drugstore") placeInput.value = "ドラッグストア";
+            else if (leg === "supermarket") placeInput.value = "スーパー";
+          }
+        } catch (e2) {}
       }
 
       function save() {
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+          localStorage.setItem(ACTIVE_PLACE_KEY, placeInput.value);
         } catch (e) {}
+      }
+
+      function getActivePlace() {
+        return placeInput.value.trim();
+      }
+
+      function placesInOrder() {
+        var seen = {};
+        var order = [];
+        items.forEach(function (i) {
+          var p = (i.place || "").trim() || "（場所未設定）";
+          if (!seen[p]) {
+            seen[p] = true;
+            order.push(p);
+          }
+        });
+        return order;
       }
 
       function splitPhrases(text) {
@@ -376,52 +501,88 @@
         return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
       }
 
+      function renderItemRow(item, ul) {
+        var li = document.createElement("li");
+        li.className = "item" + (item.done ? " done" : "");
+        li.dataset.id = item.id;
+        li.setAttribute("role", "button");
+        li.setAttribute("tabindex", "0");
+        li.innerHTML =
+          '<span class="check" aria-hidden="true">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></span>' +
+          '<span class="label"></span>';
+        li.querySelector(".label").textContent = item.text;
+        li.addEventListener("click", function () { toggle(item.id); });
+        li.addEventListener("keydown", function (e) {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            toggle(item.id);
+          }
+        });
+        ul.appendChild(li);
+      }
+
       function render() {
-        listEl.innerHTML = "";
+        listRoot.innerHTML = "";
         var hasDone = false;
         items.forEach(function (item) {
           if (item.done) hasDone = true;
-          var li = document.createElement("li");
-          li.className = "item" + (item.done ? " done" : "");
-          li.dataset.id = item.id;
-          li.setAttribute("role", "button");
-          li.setAttribute("tabindex", "0");
-          li.innerHTML =
-            '<span class="check" aria-hidden="true">' +
-            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></span>' +
-            '<span class="label"></span>';
-          li.querySelector(".label").textContent = item.text;
-          li.addEventListener("click", function () { toggle(item.id); });
-          li.addEventListener("keydown", function (e) {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              toggle(item.id);
-            }
-          });
-          listEl.appendChild(li);
         });
+
+        placesInOrder().forEach(function (placeName) {
+          var inPlace = items.filter(function (i) {
+            var p = (i.place || "").trim() || "（場所未設定）";
+            return p === placeName;
+          });
+          var section = document.createElement("section");
+          section.className = "place-section";
+          var h3 = document.createElement("h3");
+          h3.className = "place-heading";
+          h3.textContent = placeName;
+          section.appendChild(h3);
+          var ul = document.createElement("ul");
+          inPlace.forEach(function (item) {
+            renderItemRow(item, ul);
+          });
+          section.appendChild(ul);
+          listRoot.appendChild(section);
+        });
+
         emptyEl.hidden = items.length > 0;
         clearDoneBtn.hidden = !hasDone;
       }
 
       function toggle(id) {
         items = items.map(function (i) {
-          if (i.id === id) return { id: i.id, text: i.text, done: !i.done };
+          if (i.id === id) return { id: i.id, text: i.text, done: !i.done, place: i.place };
           return i;
         });
         save();
         render();
       }
 
+      function ensurePlaceForAdd() {
+        var place = getActivePlace();
+        if (!place) {
+          statusEl.textContent = "「追加する場所」を先に入力してください";
+          statusEl.classList.add("error");
+          placeInput.focus();
+          return "";
+        }
+        return place;
+      }
+
       function addFromText(text) {
+        var place = ensurePlaceForAdd();
+        if (!place) return;
         var parts = splitPhrases(text);
         if (parts.length === 0) return;
         parts.forEach(function (p) {
-          items.push({ id: uid(), text: p, done: false });
+          items.push({ id: uid(), text: p, done: false, place: place });
         });
         save();
         render();
-        statusEl.textContent = parts.length + "件追加しました";
+        statusEl.textContent = "「" + place + "」に" + parts.length + "件追加しました";
         statusEl.classList.remove("error");
         manualInput.value = "";
       }
@@ -501,6 +662,12 @@
           statusEl.textContent = "停止しました";
           return;
         }
+        if (!getActivePlace()) {
+          statusEl.textContent = "「追加する場所」を先に入力してください";
+          statusEl.classList.add("error");
+          placeInput.focus();
+          return;
+        }
         try {
           recognition.start();
         } catch (err) {
@@ -525,6 +692,12 @@
         }
       });
 
+      placeInput.addEventListener("blur", function () {
+        try {
+          localStorage.setItem(ACTIVE_PLACE_KEY, placeInput.value);
+        } catch (e) {}
+      });
+
       load();
       render();
 
@@ -533,7 +706,7 @@
         unsupportedEl.innerHTML =
           "<strong>音声が使えない理由（iPhone でよくある）</strong><br />" +
           "家の Wi-Fi の <code>http://192.168…</code> のように開いていると、ブラウザが「安全なページ」とみなさず、マイク・音声認識が無効になります。<br /><br />" +
-          "<strong>今すぐ使う：</strong> 下の「文字で追加」に品名を入れて「追加」を押してください（読点「、」で複数まとめて追加できます）。<br /><br />" +
+          "<strong>今すぐ使う：</strong> 「追加する場所」を入力してから、「文字で追加」に品名を入れて「追加」を押してください（読点「、」で複数まとめて追加できます）。<br /><br />" +
           "<strong>音声も試す：</strong> Mac で <a href=\"https://ngrok.com/\" target=\"_blank\" rel=\"noopener\">ngrok</a> などで HTTPS の URL を作り、その URL を iPhone で開くと、環境によっては音声が使えることがあります。Android の Chrome では、同じ Wi-Fi の <code>http://…</code> でも音声が動くことが多いです。";
         voiceBtn.disabled = true;
         voiceLabel.textContent = "非対応";
