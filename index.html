@@ -66,7 +66,7 @@
       flex-direction: column;
       align-items: center;
       gap: 12px;
-      margin-bottom: 0;
+      margin-bottom: 20px;
     }
 
 
@@ -395,15 +395,10 @@
 <body>
   <header>
     <h1>買い物リスト</h1>
-    <p class="sub">まず「追加する場所」に店名を入れる</p>
+    <p class="sub">まず「音声で追加」で店名を話すか、下の「追加する場所」に入力</p>
   </header>
 
   <div id="unsupported" class="unsupported" hidden></div>
-
-  <div class="place-wrap">
-    <label class="manual-label" for="placeInput">追加する場所</label>
-    <input type="text" id="placeInput" class="place-input" placeholder="例：スーパー、100円均一、ドラッグストア" autocomplete="on" enterkeyhint="next" inputmode="text" />
-  </div>
 
   <div class="voice-wrap">
     <button type="button" id="voiceBtn" class="voice-btn" aria-pressed="false">
@@ -416,6 +411,11 @@
       <span id="voiceLabel">音声で追加</span>
     </button>
     <p id="status" class="status" role="status"></p>
+  </div>
+
+  <div class="place-wrap">
+    <label class="manual-label" for="placeInput">追加する場所</label>
+    <input type="text" id="placeInput" class="place-input" placeholder="例：スーパー、100円均一、ドラッグストア" autocomplete="on" enterkeyhint="next" inputmode="text" />
   </div>
 
   <div class="manual-wrap">
@@ -431,7 +431,7 @@
     <button type="button" id="clearDone" class="clear-done" hidden>完了を削除</button>
   </div>
   <div id="listRoot" aria-label="買い物リスト（場所別）"></div>
-  <p id="empty" class="empty">まだありません。<br />上で「追加する場所」を入れてから、音声または「文字で追加」で品目を入れてください。</p>
+  <p id="empty" class="empty">まだありません。<br />上の「音声で追加」で先に店名を話すか、「追加する場所」に入力してから、品名を音声または「文字で追加」で入れてください。</p>
 
   <script>
     (function () {
@@ -454,6 +454,8 @@
 
       var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       var recognition = null;
+      /** 次の認識結果を「追加する場所」に入れるモード（場所未入力で音声ボタンを押したとき） */
+      var voiceCapturingPlace = false;
       var items = [];
 
       function placeFromItem(i) {
@@ -685,8 +687,12 @@
 
         recognition.onstart = function () {
           setListening(true);
-          var p = getActivePlace();
-          statusEl.textContent = p ? "「" + p + "」に入れる内容を話してください" : "話してください";
+          if (voiceCapturingPlace) {
+            statusEl.textContent = "追加する場所の店名を話してください";
+          } else {
+            var p = getActivePlace();
+            statusEl.textContent = "「" + p + "」に入れる品を話してください";
+          }
           statusEl.classList.remove("error");
         };
 
@@ -714,11 +720,22 @@
             transcript += e.results[i][0].transcript;
           }
           transcript = transcript.trim();
-          if (transcript) addFromText(transcript);
-          else {
+          if (!transcript) {
             statusEl.textContent = "内容が空でした";
             statusEl.classList.add("error");
+            return;
           }
+          if (voiceCapturingPlace) {
+            voiceCapturingPlace = false;
+            placeInput.value = transcript;
+            try {
+              localStorage.setItem(ACTIVE_PLACE_KEY, placeInput.value);
+            } catch (err) {}
+            statusEl.textContent = "「" + transcript + "」を追加する場所に入れました。品名を話すか、文字で追加してください。";
+            statusEl.classList.remove("error");
+            return;
+          }
+          addFromText(transcript);
         };
 
         return true;
@@ -735,17 +752,18 @@
           statusEl.textContent = "停止しました";
           return;
         }
-        if (!getActivePlace()) {
-          statusEl.textContent = "先に「追加する場所」に店名を入れてから、もう一度タップしてください";
-          statusEl.classList.add("error");
-          placeInput.focus();
-          return;
+        voiceCapturingPlace = !getActivePlace();
+        if (voiceCapturingPlace) {
+          statusEl.textContent = "店名を認識します。話し始めてください…";
+          statusEl.classList.remove("error");
+        } else {
+          statusEl.textContent = "「" + getActivePlace() + "」に追加します。話し始めてください…";
+          statusEl.classList.remove("error");
         }
-        statusEl.textContent = "「" + getActivePlace() + "」に追加します。話し始めてください…";
-        statusEl.classList.remove("error");
         try {
           recognition.start();
         } catch (err) {
+          voiceCapturingPlace = false;
           statusEl.textContent = "もう一度タップしてください";
           statusEl.classList.add("error");
         }
@@ -781,7 +799,7 @@
         unsupportedEl.innerHTML =
           "<strong>音声が使えない理由（iPhone でよくある）</strong><br />" +
           "家の Wi-Fi の <code>http://192.168…</code> のように開いていると、ブラウザが「安全なページ」とみなさず、マイク・音声認識が無効になります。<br /><br />" +
-          "<strong>今すぐ使う：</strong> 「追加する場所」を入力してから、「文字で追加」に品名を入れて「追加」を押してください（読点「、」で複数まとめて追加できます）。<br /><br />" +
+          "<strong>今すぐ使う：</strong> 「追加する場所」にキーボードで入力するか、「音声で追加」で店名を話してから、「文字で追加」に品名を入れて「追加」を押してください（読点「、」で複数まとめて追加できます）。<br /><br />" +
           "<strong>音声も試す：</strong> Mac で <a href=\"https://ngrok.com/\" target=\"_blank\" rel=\"noopener\">ngrok</a> などで HTTPS の URL を作り、その URL を iPhone で開くと、環境によっては音声が使えることがあります。Android の Chrome では、同じ Wi-Fi の <code>http://…</code> でも音声が動くことが多いです。";
         voiceBtn.disabled = true;
         voiceLabel.textContent = "非対応";
