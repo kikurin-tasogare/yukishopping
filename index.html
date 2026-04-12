@@ -339,7 +339,37 @@
     }
 
     .manual-row {
-      display: block;
+      display: flex;
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .manual-row .manual-input {
+      flex: 1;
+      min-width: 0;
+      width: auto;
+    }
+
+    .manual-add-btn {
+      flex-shrink: 0;
+      min-width: 108px;
+      max-width: 38%;
+      min-height: var(--tap);
+      padding: 0 12px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      border: 2px solid var(--accent);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--accent-dark);
+      cursor: pointer;
+      touch-action: manipulation;
+      box-shadow: var(--shadow);
+      line-height: 1.2;
+    }
+
+    .manual-add-btn:active {
+      background: var(--accent-soft);
     }
 
     .manual-input {
@@ -591,7 +621,7 @@
       class="voice-btn voice-btn-with-caption"
       aria-pressed="false"
       aria-describedby="status"
-      aria-label="文字で追加欄を音声で書き換えます。リストに入れるには Enter を押してください。"
+      aria-label="買う物を音声で言うと、いまのシーンのリストにすぐ追加されます。"
     >
       <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
         <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
@@ -610,6 +640,7 @@
     <label class="manual-label" for="manualInput">文字で追加</label>
     <div class="manual-row">
       <input type="text" id="manualInput" class="manual-input" placeholder="例：牛乳、卵（読点「、」で複数）" autocomplete="off" enterkeyhint="done" inputmode="text" />
+      <button type="button" id="manualSubmit" class="manual-add-btn" aria-label="入力内容をリストに追加">リストに追加</button>
     </div>
   </div>
 
@@ -618,7 +649,7 @@
     <button type="button" id="clearDone" class="clear-done" hidden>完了を削除</button>
   </div>
   <div id="listRoot" aria-label="やりたいことリスト（シーン別）"></div>
-  <p id="empty" class="empty">まだありません。<br />マイクで欄を音声入力 → <strong>Enter</strong>でリストへ。またはキーボードで。</p>
+  <p id="empty" class="empty">まだありません。<br />先に<strong>シーン</strong>を入れてから、<strong>買い物音声</strong>で話すと<strong>その場で下のリストに載ります</strong>（Enter は不要）。キーボードで打つときだけ「リストに追加」。</p>
 
   <div id="editOverlay" class="edit-overlay" hidden role="presentation">
     <div class="edit-dialog" role="dialog" aria-modal="true" aria-labelledby="editDialogLabel">
@@ -653,6 +684,7 @@
       var clearDoneBtn = document.getElementById("clearDone");
       var unsupportedEl = document.getElementById("unsupported");
       var manualInput = document.getElementById("manualInput");
+      var manualSubmit = document.getElementById("manualSubmit");
       var placeInput = document.getElementById("placeInput");
       var editOverlay = document.getElementById("editOverlay");
       var editInput = document.getElementById("editInput");
@@ -799,22 +831,6 @@
 
       function getActivePlace() {
         return placeInput.value.trim();
-      }
-
-      function migrateItemsPlace(oldP, newP) {
-        oldP = String(oldP || "").trim();
-        newP = String(newP || "").trim();
-        if (!newP || !oldP || oldP === newP) return;
-        items = items.map(function (i) {
-          var ip = (i.place || "").trim();
-          if (ip === oldP) return { id: i.id, text: i.text, done: i.done, place: newP };
-          return i;
-        });
-        if (collapsedPlaces[oldP] !== undefined) {
-          collapsedPlaces[newP] = collapsedPlaces[oldP];
-          delete collapsedPlaces[oldP];
-          saveCollapsed();
-        }
       }
 
       function placesInOrder() {
@@ -1070,7 +1086,8 @@
         return place;
       }
 
-      function addFromText(text, explicitPlace) {
+      function addFromText(text, explicitPlace, opts) {
+        opts = opts || {};
         var place;
         if (arguments.length >= 2 && explicitPlace !== undefined) {
           place = explicitPlace;
@@ -1087,7 +1104,11 @@
         render();
         scrollListIntoViewSoft();
         setStatus("「" + place + "」に" + parts.length + "件追加しました", false, 3200);
-        manualInput.value = "";
+        if (opts.keepManualAfterAdd) {
+          manualInput.value = String(text || "").trim();
+        } else {
+          manualInput.value = "";
+        }
       }
 
       function submitManual() {
@@ -1132,7 +1153,7 @@
         recognition.onstart = function () {
           setListening(true);
           if (recognitionFromBottomBtn) {
-            setStatus("買う物を話してください（「文字で追加」欄に入ります。リストへは Enter）", false);
+            setStatus("買う物を話してください（認識したらすぐリストに入ります）", false);
           } else if (voiceSessionIntent === "scene-replace" || voiceCapturingPlace) {
             setStatus("「シーン」を話してください", false);
           } else {
@@ -1217,12 +1238,7 @@
             pendingPlaceRestore = null;
             topSceneVoiceSession = false;
             sceneVoiceReplaceCommitted = true;
-            manualInput.value = ttrim;
-            setStatus(
-              "「文字で追加」に入れました。リストへ追加するには Enter を押してください。",
-              false,
-              4200
-            );
+            addFromText(ttrim, undefined, { keepManualAfterAdd: true });
             return;
           }
 
@@ -1243,21 +1259,24 @@
             try {
               localStorage.setItem(ACTIVE_PLACE_KEY, placeInput.value);
             } catch (err) {}
-            if (renameFrom) {
-              migrateItemsPlace(renameFrom, ttrim);
-            }
             save();
             render();
             scrollListIntoViewSoft();
             if (renameFrom) {
               setStatus(
-                "「" + renameFrom + "」を「" + ttrim + "」に書き換えました（下のリストのまとまりも移しました）。",
+                "シーン欄を「" +
+                  ttrim +
+                  "」にしました。すでにあるリストの項目は「" +
+                  renameFrom +
+                  "」のままです。これから足す分は「" +
+                  ttrim +
+                  "」に入ります。",
                 false,
                 4200
               );
             } else {
               setStatus(
-                "「" + ttrim + "」をシーン欄に入れました。買う物は「文字で追加」に入力し、Enter でリストへ。",
+                "「" + ttrim + "」をシーン欄に入れました。買い物音声は Enter なしでリストへ。キーボードは「リストに追加」。",
                 false,
                 4200
               );
@@ -1279,21 +1298,24 @@
             try {
               localStorage.setItem(ACTIVE_PLACE_KEY, placeInput.value);
             } catch (err3) {}
-            if (rf) {
-              migrateItemsPlace(rf, ttrim);
-            }
             save();
             render();
             scrollListIntoViewSoft();
             if (rf) {
               setStatus(
-                "「" + rf + "」を「" + ttrim + "」に書き換えました（下のリストのまとまりも移しました）。",
+                "シーン欄を「" +
+                  ttrim +
+                  "」にしました。すでにあるリストの項目は「" +
+                  rf +
+                  "」のままです。これから足す分は「" +
+                  ttrim +
+                  "」に入ります。",
                 false,
                 4200
               );
             } else {
               setStatus(
-                "「" + ttrim + "」をシーン欄に入れました。買う物は「文字で追加」に入力し、Enter でリストへ。",
+                "「" + ttrim + "」をシーン欄に入れました。買い物音声は Enter なしでリストへ。キーボードは「リストに追加」。",
                 false,
                 4200
               );
@@ -1301,12 +1323,7 @@
             return;
           }
 
-          manualInput.value = ttrim;
-          setStatus(
-            "「文字で追加」に入れました。リストへは Enter で追加できます。",
-            false,
-            3200
-          );
+          addFromText(ttrim, undefined, { keepManualAfterAdd: true });
         };
 
         return true;
@@ -1382,7 +1399,7 @@
         startSceneVoiceReplaceSession(voiceBtnPlace);
       }
 
-      /** 買い物音声: 「文字で追加」を認識結果で上書きするだけ（リストへは Enter） */
+      /** 買い物音声: 認識完了でリストに追加し、文字で追加欄にも同じ文を残す */
       function handleVoiceClickTop() {
         if (stopAnyVoiceListening()) return;
         if (!recognition) {
@@ -1438,6 +1455,10 @@
         }
       });
 
+      manualSubmit.addEventListener("click", function () {
+        submitManual();
+      });
+
       placeInput.addEventListener("blur", function () {
         try {
           localStorage.setItem(ACTIVE_PLACE_KEY, placeInput.value);
@@ -1474,7 +1495,7 @@
         unsupportedEl.innerHTML =
           "<strong>音声が使えない理由（iPhone でよくある）</strong><br />" +
           "家の Wi-Fi の <code>http://192.168…</code> のように開いていると、ブラウザが「安全なページ」とみなさず、マイク・音声認識が無効になります。<br /><br />" +
-          "<strong>今すぐ使う：</strong> キーボードで「シーン」「文字で追加」に入力し、<strong>Enter</strong>でリストへ。音声が使える環境ではマイクで欄を書き換えられます（自動ではリストに入りません）。<br /><br />" +
+          "<strong>今すぐ使う：</strong> シーンと買い物はキーボードで入力し、「リストに追加」で確定。音声が使えると買い物は認識と同時にリストへ（Enter 不要）。<br /><br />" +
           "<strong>音声も試す：</strong> Mac で <a href=\"https://ngrok.com/\" target=\"_blank\" rel=\"noopener\">ngrok</a> などで HTTPS の URL を作り、その URL を iPhone で開くと、環境によっては音声が使えることがあります。Android の Chrome では、同じ Wi-Fi の <code>http://…</code> でも音声が動くことが多いです。";
         voiceLabelPlace.textContent = "音声で追加";
         voiceLabel2.textContent = "買い物音声";
