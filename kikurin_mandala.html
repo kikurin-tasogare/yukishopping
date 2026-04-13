@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>佑哉の曼荼羅</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;700&family=Inter:wght@300;400;600&display=swap');
+
+    :root {
+      --bg: #080608;
+      --gold: #c9a84c;
+      --gold2: #e8c96d;
+      --gold-dim: rgba(201,168,76,0.25);
+      --gold-soft: rgba(201,168,76,0.08);
+      --red: #8b2020;
+      --red-soft: rgba(139,32,32,0.18);
+      --teal: #2a6b6b;
+      --teal-soft: rgba(42,107,107,0.18);
+      --purple: #4a2a6b;
+      --text: #e8e4da;
+      --muted: #5a5a65;
+      --muted2: #8a8a95;
+      --surface: #0e0c10;
+      --border: rgba(255,255,255,0.07);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter','Hiragino Sans',sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ─── HEADER ─── */
+    .site-header {
+      text-align: center;
+      padding: 40px 24px 20px;
+    }
+    .eyebrow {
+      font-size: 0.65rem;
+      letter-spacing: 0.28em;
+      color: var(--gold);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    h1 {
+      font-family: 'Noto Serif JP', serif;
+      font-size: 1.8rem;
+      font-weight: 300;
+      letter-spacing: 0.1em;
+      color: var(--text);
+    }
+    .subtitle {
+      font-size: 0.75rem;
+      color: var(--muted2);
+      margin-top: 8px;
+      letter-spacing: 0.08em;
+    }
+
+    /* ─── MANDALA CANVAS ─── */
+    .mandala-wrap {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px 16px 8px;
+    }
+
+    svg.mandala {
+      width: 100%;
+      max-width: 560px;
+      height: auto;
+    }
+
+    /* node hover */
+    .node-group { cursor: pointer; }
+    .node-group:hover .node-circle { filter: brightness(1.35); }
+    .node-group:hover .node-ring   { opacity: 1; }
+
+    /* ─── DETAIL PANEL ─── */
+    .detail-panel {
+      max-width: 540px;
+      margin: 0 auto;
+      padding: 0 20px 20px;
+      min-height: 80px;
+    }
+    .detail-box {
+      background: var(--surface);
+      border: 1px solid var(--gold-dim);
+      border-radius: 12px;
+      padding: 18px 20px;
+      display: none;
+    }
+    .detail-box.visible { display: block; }
+    .detail-title {
+      font-family: 'Noto Serif JP', serif;
+      font-size: 1rem;
+      color: var(--gold2);
+      margin-bottom: 6px;
+      letter-spacing: 0.06em;
+    }
+    .detail-desc {
+      font-size: 0.82rem;
+      color: var(--muted2);
+      line-height: 1.7;
+      margin-bottom: 12px;
+    }
+    .detail-notes { display: grid; gap: 8px; }
+    .detail-note {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.82rem;
+      line-height: 1.6;
+      color: var(--text);
+    }
+    .detail-note-date {
+      font-size: 0.68rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .detail-empty {
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    /* ─── DIVIDER ─── */
+    hr.divider {
+      max-width: 540px;
+      margin: 20px auto;
+      border: none;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ─── INPUT ─── */
+    .input-section {
+      max-width: 540px;
+      margin: 0 auto;
+      padding: 0 20px 20px;
+    }
+    .section-label {
+      font-size: 0.64rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 14px;
+      display: block;
+    }
+    .field-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    .field-select, .field-input, .field-textarea {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.86rem;
+      color: var(--text);
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .field-select { flex-shrink: 0; }
+    .field-select:focus, .field-input:focus, .field-textarea:focus {
+      border-color: var(--gold-dim);
+    }
+    .field-input  { flex: 1; min-width: 0; }
+    .field-textarea { width: 100%; min-height: 72px; resize: vertical; margin-bottom: 10px; }
+    .add-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 11px 22px;
+      background: transparent;
+      border: 1px solid var(--gold-dim);
+      border-radius: 8px;
+      color: var(--gold);
+      font-size: 0.8rem;
+      font-family: inherit;
+      letter-spacing: 0.12em;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .add-btn:hover { background: var(--gold-soft); }
+
+    /* ─── LOG ─── */
+    .log-section {
+      max-width: 540px;
+      margin: 0 auto;
+      padding: 0 20px 60px;
+    }
+    .log-grid { display: grid; gap: 8px; }
+    .log-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 14px 16px;
+      transition: border-color 0.2s;
+    }
+    .log-card:hover { border-color: var(--gold-dim); }
+    .log-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 7px;
+      flex-wrap: wrap;
+    }
+    .log-badge {
+      font-size: 0.62rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+    .b-core    { background:rgba(201,168,76,0.15);  color:#c9a84c; }
+    .b-value   { background:rgba(139,32,32,0.15);   color:#e07070; }
+    .b-sense   { background:rgba(42,107,107,0.15);  color:#6fcfcf; }
+    .b-project { background:rgba(74,42,107,0.2);    color:#b39ddb; }
+    .b-vision  { background:rgba(96,165,250,0.15);  color:#93c5fd; }
+    .b-relation{ background:rgba(78,139,107,0.15);  color:#6fcf97; }
+    .b-thought { background:rgba(180,140,80,0.15);  color:#d4a96a; }
+    .log-tag { font-size: 0.68rem; color: var(--muted2); }
+    .log-date { margin-left: auto; font-size: 0.65rem; color: var(--muted); }
+    .log-text { font-size: 0.86rem; line-height: 1.65; }
+    .log-empty { text-align:center; padding:36px 0; font-size:0.8rem; color:var(--muted); letter-spacing:0.04em; }
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <p class="eyebrow">Self Mandala</p>
+  <h1>佑哉の曼荼羅</h1>
+  <p class="subtitle">自分という宇宙を描くデータベース — ノードをタップして記録を見る</p>
+</header>
+
+<!-- ═══ MANDALA SVG ═══ -->
+<div class="mandala-wrap">
+<svg class="mandala" viewBox="0 0 560 560" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="glow-gold">
+      <feGaussianBlur stdDeviation="5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glow-sm">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#12080e"/>
+      <stop offset="100%" stop-color="#050305"/>
+    </radialGradient>
+    <radialGradient id="centerGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#2a1a08"/>
+      <stop offset="100%" stop-color="#0e0808"/>
+    </radialGradient>
+    <radialGradient id="ring1Grad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#1a0a0a"/>
+      <stop offset="100%" stop-color="#0a0608"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="280" cy="280" r="268" fill="url(#bgGrad)" stroke="rgba(201,168,76,0.18)" stroke-width="1.5"/>
+
+  <!-- Decorative concentric rings -->
+  <circle cx="280" cy="280" r="252" fill="none" stroke="rgba(201,168,76,0.06)" stroke-width="1"/>
+  <circle cx="280" cy="280" r="228" fill="none" stroke="rgba(201,168,76,0.08)" stroke-width="0.8"/>
+  <circle cx="280" cy="280" r="180" fill="none" stroke="rgba(201,168,76,0.1)"  stroke-width="1"/>
+  <circle cx="280" cy="280" r="130" fill="none" stroke="rgba(201,168,76,0.12)" stroke-width="1"/>
+  <circle cx="280" cy="280" r="80"  fill="none" stroke="rgba(201,168,76,0.2)"  stroke-width="1"/>
+
+  <!-- Lotus petal guides (8 petals) -->
+  <g opacity="0.06" stroke="#c9a84c" stroke-width="1" fill="none">
+    <line x1="280" y1="52"  x2="280" y2="508"/>
+    <line x1="52"  y1="280" x2="508" y2="280"/>
+    <line x1="118" y1="118" x2="442" y2="442"/>
+    <line x1="442" y1="118" x2="118" y2="442"/>
+  </g>
+
+  <!-- Outer decorative dots (16) -->
+  <g fill="rgba(201,168,76,0.3)" filter="url(#glow-sm)">
+    <circle cx="280" cy="28" r="2.2"/>
+    <circle cx="395" cy="56" r="1.8"/>
+    <circle cx="484" cy="136" r="1.8"/>
+    <circle cx="532" cy="252" r="2.2"/>
+    <circle cx="504" cy="395" r="1.8"/>
+    <circle cx="424" cy="484" r="1.8"/>
+    <circle cx="308" cy="532" r="2.2"/>
+    <circle cx="165" cy="504" r="1.8"/>
+    <circle cx="76"  cy="424" r="1.8"/>
+    <circle cx="28"  cy="308" r="2.2"/>
+    <circle cx="56"  cy="165" r="1.8"/>
+    <circle cx="136" cy="76"  r="1.8"/>
+  </g>
+
+  <!-- ═══ RING 3 — OUTER NODES (Vision / Project / Relation) ═══ -->
+  <!-- 8 outer nodes at r=210 -->
+
+  <!-- Node: ビジョン (top) -->
+  <g class="node-group" onclick="selectNode('vision')" id="nd-vision">
+    <circle cx="280" cy="70" r="36" fill="rgba(96,165,250,0.06)" class="node-circle"/>
+    <circle cx="280" cy="70" r="36" fill="none" stroke="rgba(96,165,250,0.4)" stroke-width="1" class="node-ring" opacity="0.6"/>
+    <circle cx="280" cy="70" r="28" fill="rgba(96,165,250,0.08)"/>
+    <circle cx="280" cy="70" r="20" fill="rgba(12,20,35,0.9)"/>
+    <text x="280" y="65" text-anchor="middle" fill="#93c5fd" font-size="9" font-family="'Noto Serif JP',serif" letter-spacing="0.04em">ビジョン</text>
+    <text x="280" y="77" text-anchor="middle" fill="#93c5fd" font-size="9" font-family="'Noto Serif JP',serif" letter-spacing="0.04em">未来</text>
+  </g>
+
+  <!-- Node: プロジェクト (upper-right) -->
+  <g class="node-group" onclick="selectNode('project')" id="nd-project">
+    <circle cx="430" cy="130" r="36" fill="rgba(74,42,107,0.08)" class="node-circle"/>
+    <circle cx="430" cy="130" r="36" fill="none" stroke="rgba(179,157,219,0.4)" stroke-width="1" class="node-ring" opacity="0.6"/>
+    <circle cx="430" cy="130" r="28" fill="rgba(74,42,107,0.1)"/>
+    <circle cx="430" cy="130" r="20" fill="rgba(12,8,20,0.9)"/>
+    <text x="430" y="125" text-anchor="middle" fill="#b39ddb" font-size="9" font-family="'Noto Serif JP',serif" letter-spacing="0.04em">プロ</text>
+    <text x="430" y="137" text-anchor="middle" fill="#b39ddb" font-size="9" font-family="'Noto Serif JP',serif" letter-spacing="0.04em">ジェクト</text>
+  </g>
+
+  <!-- Node: 人間関係 (right) -->
+  <g class="node-group" onclick="selectNode('relation')" id="nd-relation">
+    <circle cx="490" cy="280" r="36" fill="rgba(78,139,107,0.07)" class="node-circle"/>
+    <circle cx="490" cy="280" r="36" fill="none" stroke="rgba(111,207,151,0.4)" stroke-width="1" class="node-ring" opacity="0.6"/>
+    <circle cx="490" cy="280" r="28" fill="rgba(78,139,107,0.08)"/>
+    <circle cx="490" cy="280" r="20" fill="rgba(8,18,14,0.9)"/>
+    <text x="490" y="275" text-anchor="middle" fill="#6fcf97" font-size="9" font-family="'Noto Serif JP',serif" letter-spacing="0.04em">人間</text>
+    <text x="490" y="287" text-anchor="middle" fill="#6fcf97" font-size="9" font-family="'Noto Serif JP',serif" letter-spacing="0.04em">関係</text>
+  </g>
+
+  <!-- Node: 日常の記録 (lower-right) -->
+  <g class="node-group" onclick="selectNode('daily')" id="nd-daily">
+    <circle cx="430" cy="430" r="36" fill="rgba(78,139,107,0.06)" class="node-circle"/>
+    <circle cx="430" cy="430" r="36" fill="none" stroke="rgba(111,207,151,0.3)" stroke-width="1" class="node-ring" opacity="0.5"/>
+    <circle cx="430" cy="430" r="28" fill="rgba(78,139,107,0.07)"/>
+    <circle cx="430" cy="430" r="20" fill="rgba(8,18,14,0.9)"/>
+    <text x="430" y="425" text-anchor="middle" fill="#6fcf97" font-size="9" font-family="'Noto Serif JP',serif" letter-spacing="0.04em">日常</text>
+    <text x="430" y="437" text-anchor="middle" fill="#6fcf97" font-size="9" font-family="'Noto Serif JP',serif" letter-spacing="0.04em">記録</text>
+  </g>
+
+  <!-- Node: 気づき (bottom) -->
+  <g class="node-group" onclick="selectNode('insight')" id="nd-insight">
+    <circle cx="280" cy="490" r="36" fill="rgba(201,168,76,0.05)" class="node-circle"/>
+    <circle cx="280" cy="490" r="36" fill="none" stroke="rgba(201,168,76,0.3)" stroke-width="1" class="node-ring" opacity="0.5"/>
+    <circle cx="280" cy="490" r="28" fill="rgba(201,168,76,0.06)"/>
+    <circle cx="280" cy="490" r="20" fill="rgba(14,12,6,0.9)"/>
+    <text x="280" y="485" text-anchor="middle" fill="#c9a84c" font-size="9" font-family="'Noto Serif JP',serif" letter-spacing="0.04em">気づき</text>
+    <text x="280" y="497" text-anchor="middle" fill="#c9a84c" font-size="9" font-family="'Noto Serif JP',serif" letter-spacing="0.04em">メモ</text>
+  </g>
+
+  <!-- Node: 過去・経験 (lower-left) -->
+  <g class="node-group" onclick="selectNode('past')" id="nd-past">
+    <circle cx="130" cy="430" r="36" fill="rgba(139,32,32,0.06)" class="node-circle"/>
+    <circle cx="130" cy="430" r="36" fill="none" stroke="rgba(224,112,112,0.3)" stroke-width="1" class="node-ring" opacity="0.5"/>
+    <circle cx="130" cy="430" r="28" fill="rgba(139,32,32,0.07)"/>
+    <circle cx="130" cy="430" r="20" fill="rgba(18,8,8,0.9)"/>
+    <text x="130" y="425" text-anchor="middle" fill="#e07070" font-size="9" font-family="'Noto Serif JP',serif" letter-spacing="0.04em">過去</text>
+    <text x="130" y="437" text-anchor="middle" fill="#e07070" font-size="9" font-family="'Noto Serif JP',serif" letter-spacing="0.04em">経験</text>
+  </g>
+
+  <!-- Node: 宿命・占術 (left) -->
+  <g class="node-group" onclick="selectNode('destiny')" id="nd-destiny">
+    <circle cx="70" cy="280" r="36" fill="rgba(139,32,32,0.07)" class="node-circle"/>
+    <circle cx="70" cy="280" r="36" fill="none" stroke="rgba(224,112,112,0.4)" stroke-width="1" class="node-ring" opacity="0.6"/>
+    <circle cx="70" cy="280" r="28" fill="rgba(139,32,32,0.08)"/>
+    <circle cx="70" cy="280" r="20" fill="rgba(18,8,8,0.9)"/>
+    <text x="70" y="275" text-anchor="middle" fill="#e07070" font-size="9" font-family="'Noto Serif JP',serif" letter-spacing="0.04em">宿命</text>
+    <text x="70" y="287" text-anchor="middle" fill="#e07070" font-size="9" font-family="'Noto Serif JP',serif" letter-spacing="0.04em">占術</text>
+  </g>
+
+  <!-- Node: 音楽・写真 (upper-left) -->
+  <g class="node-group" onclick="selectNode('art')" id="nd-art">
+    <circle cx="130" cy="130" r="36" fill="rgba(42,107,107,0.07)" class="node-circle"/>
+    <circle cx="130" cy="130" r="36" fill="none" stroke="rgba(111,207,207,0.4)" stroke-width="1" class="node-ring" opacity="0.6"/>
+    <circle cx="130" cy="130" r="28" fill="rgba(42,107,107,0.08)"/>
+    <circle cx="130" cy="130" r="20" fill="rgba(6,16,16,0.9)"/>
+    <text x="130" y="125" text-anchor="middle" fill="#6fcfcf" font-size="9" font-family="'Noto Serif JP',serif" letter-spacing="0.04em">音楽</text>
+    <text x="130" y="137" text-anchor="middle" fill="#6fcfcf" font-size="9" font-family="'Noto Serif JP',serif" letter-spacing="0.04em">写真</text>
+  </g>
+
+  <!-- ═══ RING 2 — INNER NODES (at r=130) ═══ -->
+
+  <!-- 感性・美意識 (top-right) -->
+  <g class="node-group" onclick="selectNode('sense')" id="nd-sense">
+    <circle cx="372" cy="188" r="28" fill="rgba(42,107,107,0.08)" class="node-circle"/>
+    <circle cx="372" cy="188" r="28" fill="none" stroke="rgba(111,207,207,0.35)" stroke-width="1" class="node-ring" opacity="0.55"/>
+    <circle cx="372" cy="188" r="21" fill="rgba(6,16,16,0.92)"/>
+    <text x="372" y="184" text-anchor="middle" fill="#6fcfcf" font-size="8.5" font-family="'Noto Serif JP',serif">感性</text>
+    <text x="372" y="195" text-anchor="middle" fill="#6fcfcf" font-size="8.5" font-family="'Noto Serif JP',serif">美意識</text>
+  </g>
+
+  <!-- 思考パターン (bottom-right) -->
+  <g class="node-group" onclick="selectNode('thought')" id="nd-thought">
+    <circle cx="372" cy="372" r="28" fill="rgba(180,140,80,0.07)" class="node-circle"/>
+    <circle cx="372" cy="372" r="28" fill="none" stroke="rgba(212,169,106,0.35)" stroke-width="1" class="node-ring" opacity="0.55"/>
+    <circle cx="372" cy="372" r="21" fill="rgba(14,12,6,0.92)"/>
+    <text x="372" y="368" text-anchor="middle" fill="#d4a96a" font-size="8.5" font-family="'Noto Serif JP',serif">思考</text>
+    <text x="372" y="379" text-anchor="middle" fill="#d4a96a" font-size="8.5" font-family="'Noto Serif JP',serif">パターン</text>
+  </g>
+
+  <!-- 価値観 (bottom-left) -->
+  <g class="node-group" onclick="selectNode('value')" id="nd-value">
+    <circle cx="188" cy="372" r="28" fill="rgba(139,32,32,0.07)" class="node-circle"/>
+    <circle cx="188" cy="372" r="28" fill="none" stroke="rgba(224,112,112,0.35)" stroke-width="1" class="node-ring" opacity="0.55"/>
+    <circle cx="188" cy="372" r="21" fill="rgba(18,8,8,0.92)"/>
+    <text x="188" y="376" text-anchor="middle" fill="#e07070" font-size="8.5" font-family="'Noto Serif JP',serif">価値観</text>
+  </g>
+
+  <!-- ゆうきちゃん (top-left) -->
+  <g class="node-group" onclick="selectNode('yuki')" id="nd-yuki">
+    <circle cx="188" cy="188" r="28" fill="rgba(78,139,107,0.08)" class="node-circle"/>
+    <circle cx="188" cy="188" r="28" fill="none" stroke="rgba(111,207,151,0.35)" stroke-width="1" class="node-ring" opacity="0.55"/>
+    <circle cx="188" cy="188" r="21" fill="rgba(8,18,14,0.92)"/>
+    <text x="188" y="184" text-anchor="middle" fill="#6fcf97" font-size="8.5" font-family="'Noto Serif JP',serif">ゆうき</text>
+    <text x="188" y="195" text-anchor="middle" fill="#6fcf97" font-size="8.5" font-family="'Noto Serif JP',serif">ちゃん</text>
+  </g>
+
+  <!-- ═══ CENTER NODE ═══ -->
+  <circle cx="280" cy="280" r="58" fill="url(#centerGrad)" stroke="rgba(201,168,76,0.5)" stroke-width="1.5" filter="url(#glow-gold)" class="node-group" style="cursor:pointer" onclick="selectNode('core')"/>
+  <circle cx="280" cy="280" r="50" fill="rgba(201,168,76,0.06)" stroke="rgba(201,168,76,0.3)" stroke-width="0.8"/>
+  <circle cx="280" cy="280" r="40" fill="rgba(201,168,76,0.04)" stroke="rgba(201,168,76,0.2)" stroke-width="0.6"/>
+  <text x="280" y="272" text-anchor="middle" fill="#e8e4da" font-size="14" font-family="'Noto Serif JP',serif" font-weight="300" letter-spacing="0.1em" style="cursor:pointer" onclick="selectNode('core')">佑哉</text>
+  <text x="280" y="290" text-anchor="middle" fill="#8a8a95" font-size="8.5" font-family="'Inter',sans-serif" letter-spacing="0.1em" style="cursor:pointer" onclick="selectNode('core')">YUYA · 43</text>
+
+  <!-- Center glow -->
+  <circle cx="280" cy="280" r="62" fill="none" stroke="rgba(201,168,76,0.12)" stroke-width="6" filter="url(#glow-gold)" opacity="0.5"/>
+
+  <!-- Connector lines (center to ring2) -->
+  <g stroke="rgba(201,168,76,0.12)" stroke-width="1" fill="none">
+    <line x1="280" y1="222" x2="280" y2="70"/>
+    <line x1="338" y1="222" x2="430" y2="130"/>
+    <line x1="338" y1="280" x2="490" y2="280"/>
+    <line x1="338" y1="338" x2="430" y2="430"/>
+    <line x1="280" y1="338" x2="280" y2="490"/>
+    <line x1="222" y1="338" x2="130" y2="430"/>
+    <line x1="222" y1="280" x2="70"  y2="280"/>
+    <line x1="222" y1="222" x2="130" y2="130"/>
+    <!-- inner ring connections -->
+    <line x1="308" y1="244" x2="372" y2="188"/>
+    <line x1="308" y1="316" x2="372" y2="372"/>
+    <line x1="252" y1="316" x2="188" y2="372"/>
+    <line x1="252" y1="244" x2="188" y2="188"/>
+  </g>
+</svg>
+</div>
+
+<!-- DETAIL PANEL -->
+<div class="detail-panel">
+  <div class="detail-box" id="detailBox">
+    <div class="detail-title" id="detailTitle"></div>
+    <div class="detail-desc"  id="detailDesc"></div>
+    <div class="detail-notes" id="detailNotes"></div>
+  </div>
+</div>
+
+<hr class="divider"/>
+
+<!-- INPUT -->
+<div class="input-section">
+  <span class="section-label">気づきを曼荼羅に刻む</span>
+  <div class="field-row">
+    <select id="catSelect" class="field-select">
+      <option value="core">佑哉（中心）</option>
+      <option value="vision">ビジョン・未来</option>
+      <option value="project">プロジェクト</option>
+      <option value="relation">人間関係</option>
+      <option value="daily">日常の記録</option>
+      <option value="insight">気づき・メモ</option>
+      <option value="past">過去・経験</option>
+      <option value="destiny">宿命・占術</option>
+      <option value="art">音楽・写真</option>
+      <option value="sense">感性・美意識</option>
+      <option value="thought">思考パターン</option>
+      <option value="value">価値観</option>
+      <option value="yuki">ゆうきちゃん</option>
+    </select>
+    <input type="text" id="tagInput" class="field-input" placeholder="キーワード（任意）"/>
+  </div>
+  <textarea id="noteInput" class="field-textarea" placeholder="気づいたこと・感じたことを書いて"></textarea>
+  <button class="add-btn" onclick="addNote()">
+    <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><line x1="5.5" y1="1" x2="5.5" y2="10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="1" y1="5.5" x2="10" y2="5.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    曼荼羅に刻む
+  </button>
+</div>
+
+<hr class="divider"/>
+
+<!-- LOG -->
+<div class="log-section">
+  <span class="section-label" style="display:block;margin-bottom:14px;">すべての記録</span>
+  <div id="logList" class="log-grid">
+    <p class="log-empty">まだ記録がありません</p>
+  </div>
+</div>
+
+<script>
+  var STORAGE_KEY = "kikurin-mandala-v1";
+  var notes = [];
+
+  var nodeInfo = {
+    core:     { label:"佑哉（中心）",     desc:"すべての根源。自分という存在の核。", badge:"b-core"    },
+    vision:   { label:"ビジョン・未来",   desc:"向かっていく方向と光。未来の設計図。",  badge:"b-vision"  },
+    project:  { label:"プロジェクト",     desc:"現在進行中の動き・挑戦・仕事。",      badge:"b-project" },
+    relation: { label:"人間関係",         desc:"大切な人たちとのつながり。",           badge:"b-relation" },
+    daily:    { label:"日常の記録",       desc:"毎日の出来事・小さな発見。",           badge:"b-relation" },
+    insight:  { label:"気づき・メモ",     desc:"ふと気づいたこと・頭に浮かんだこと。", badge:"b-core"    },
+    past:     { label:"過去・経験",       desc:"自分を形成してきた出来事と学び。",     badge:"b-value"   },
+    destiny:  { label:"宿命・占術",       desc:"癸・九紫火星・数秘11。自分の設計図。", badge:"b-value"   },
+    art:      { label:"音楽・写真",       desc:"Studio One・Dazz。魂が喜ぶ表現。",   badge:"b-sense"   },
+    sense:    { label:"感性・美意識",     desc:"美しいと感じる瞬間・エモい体験。",     badge:"b-sense"   },
+    thought:  { label:"思考パターン",     desc:"自分の思考の癖・ゼロ100・繰り返す回路。", badge:"b-thought" },
+    value:    { label:"価値観",           desc:"大切にしていること・曲げたくない軸。", badge:"b-value"   },
+    yuki:     { label:"ゆうきちゃん",     desc:"最も大切な存在。豊かな未来の共に。",  badge:"b-relation" },
+  };
+
+  var selectedNode = null;
+
+  function selectNode(id) {
+    selectedNode = id;
+    var info = nodeInfo[id];
+    if (!info) return;
+    document.getElementById("detailTitle").textContent = info.label;
+    document.getElementById("detailDesc").textContent  = info.desc;
+    document.getElementById("catSelect").value = id;
+
+    var relevant = notes.filter(function(n){ return n.cat === id; });
+    var el = document.getElementById("detailNotes");
+    if (relevant.length === 0) {
+      el.innerHTML = '<p class="detail-empty">まだ記録がありません。下の入力欄から追加できます。</p>';
+    } else {
+      el.innerHTML = relevant.map(function(n){
+        return '<div class="detail-note">' +
+          (n.tag ? '<span style="font-size:0.68rem;color:var(--muted2);margin-bottom:4px;display:block;"># ' + n.tag + '</span>' : '') +
+          n.note +
+          '<div class="detail-note-date">' + n.date + '</div>' +
+        '</div>';
+      }).join("");
+    }
+    document.getElementById("detailBox").classList.add("visible");
+    document.getElementById("detailBox").scrollIntoView({ behavior:"smooth", block:"nearest" });
+  }
+
+  function addNote() {
+    var cat  = document.getElementById("catSelect").value;
+    var tag  = document.getElementById("tagInput").value.trim();
+    var note = document.getElementById("noteInput").value.trim();
+    if (!note) return;
+    var now = new Date();
+    var d = now.getFullYear() + "/" + String(now.getMonth()+1).padStart(2,"0") + "/" + String(now.getDate()).padStart(2,"0") + "  " + String(now.getHours()).padStart(2,"0") + ":" + String(now.getMinutes()).padStart(2,"0");
+    notes.unshift({ id: Date.now(), cat: cat, tag: tag, note: note, date: d });
+    save(); render();
+    document.getElementById("noteInput").value = "";
+    document.getElementById("tagInput").value = "";
+    if (selectedNode === cat) selectNode(cat);
+  }
+
+  function save() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(notes)); } catch(e) {}
+  }
+
+  function load() {
+    try { var r = localStorage.getItem(STORAGE_KEY); if (r) notes = JSON.parse(r); } catch(e) { notes=[]; }
+    render();
+  }
+
+  function render() {
+    var el = document.getElementById("logList");
+    if (notes.length === 0) { el.innerHTML='<p class="log-empty">まだ記録がありません</p>'; return; }
+    el.innerHTML = notes.map(function(n){
+      var info = nodeInfo[n.cat] || nodeInfo.core;
+      return '<div class="log-card">' +
+        '<div class="log-top">' +
+          '<span class="log-badge ' + info.badge + '">' + info.label + '</span>' +
+          (n.tag ? '<span class="log-tag"># ' + n.tag + '</span>' : '') +
+          '<span class="log-date">' + n.date + '</span>' +
+        '</div>' +
+        '<div class="log-text">' + n.note + '</div>' +
+      '</div>';
+    }).join("");
+  }
+
+  load();
+</script>
+</body>
+</html>
